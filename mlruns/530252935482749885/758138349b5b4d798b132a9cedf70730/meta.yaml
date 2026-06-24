@@ -1,0 +1,14 @@
+artifact_uri: file:///C:/Users/hhema/llm-observability-platform/mlruns/530252935482749885/758138349b5b4d798b132a9cedf70730/artifacts
+end_time: 1782281507141
+entry_point_name: ''
+experiment_id: '530252935482749885'
+lifecycle_stage: active
+run_id: 758138349b5b4d798b132a9cedf70730
+run_name: baseline_v5_reranker_rerank_top_5
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1782281506418
+status: 3
+tags: []
+user_id: hhema
