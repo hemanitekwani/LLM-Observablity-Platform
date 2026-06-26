@@ -8,7 +8,6 @@ import numpy as np
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 
-from rag.pipeline import Pipeline
 from evaluation.evaluator import evaluate_single
 from rag.pipeline_1 import Pipeline_1
 
@@ -16,9 +15,7 @@ from rag.pipeline_1 import Pipeline_1
 def run_test():
     print("Loading RAG Pipeline")
 
-    pipeline = Pipeline()
-
-    # pipeline_1 = Pipeline_1()
+    pipeline_1 = Pipeline_1()
 
     print("Loading Evaluation Dataset...")
 
@@ -26,14 +23,13 @@ def run_test():
     
     single_hop_mix = question_df[question_df["question_type"] == "single_hop"]
     multi_hop_mix = question_df[question_df["question_type"] == "multi_hop"]
-    adversial_mix = question_df[question_df["question_type"] == "adversarial"]
+    adversarial_mix = question_df[question_df["question_type"] == "adversarial"]
     not_answerable = question_df[question_df["question_type"] == "not_answerable"]
     noisy_query = question_df[question_df["question_type"] == "noisy_query"]
 
 
 
-
-    eval_df = pd.concat([single_hop_mix , multi_hop_mix, adversial_mix,not_answerable,noisy_query]).reset_index(drop=True)
+    eval_df = pd.concat([single_hop_mix , multi_hop_mix, adversarial_mix,not_answerable , noisy_query]).reset_index(drop=True)
 
 
     results = []
@@ -55,15 +51,13 @@ def run_test():
         try:
             start_time = time.time()
 
-            rag_result = pipeline.ask(question)
-
-            print(f"DEBUG - Contexts Retrieved: {rag_result.get('contexts')}")
+            rag_result = pipeline_1.ask(question)
 
             latency = time.time() - start_time
 
             generated_answer = rag_result.get("answer",rag_result.get("result" , ""))
 
-            retrieved_contexts = rag_result.get("contexts" ,[])
+            retrieved_contexts = [doc.page_content for doc in rag_result.get("contexts" ,[])]
             
             
             scores = evaluate_single(question=question , answer=generated_answer,contexts=retrieved_contexts,ground_truth=ground_truth)
@@ -130,24 +124,21 @@ if __name__ == "__main__":
 
     # result_df.to_csv("results/evaluation_results_v2.csv",index=False)
     
+
+
     import mlflow
+
 
     mlflow.set_experiment("RAG EVALUATION")
 
-    with mlflow.start_run(run_name="baseline_v2_CRAG"):
-        
-        mlflow.log_param("document", "Detailed Advertisement_350 SOs (ENGLISH).pdf")
-        
-        mlflow.log_param("vector_fetch_k", 10)      
-        mlflow.log_param("reranker_top_k", 3)        
-        mlflow.log_param("reranker_model", "BAAI/bge-reranker-base")
-        mlflow.log_param("retrieval_type", "hybrid_ensemble")
-        mlflow.log_param("embedding_model", "BAAI/bge-m3")
-        mlflow.log_param("hybrid_weights", [0.7, 0.3])
-        mlflow.log_param("ensemble_retrievers", ["faiss_dense", "bm25_sparse"])
+    with mlflow.start_run(run_name="baseline_v1_RAG"):
+
+       
+        mlflow.log_param("vector_fetch_k", 3)      
+            
         mlflow.log_param("chunk_size", 500)
 
-        mlflow.log_param("architecture", "Self-Correcting CRAG")
+        mlflow.log_param("architecture", "Baseline RAG")
         mlflow.log_param("max_retries", 2)
 
         mlflow.log_param("system_prompt", """
@@ -161,25 +152,19 @@ if __name__ == "__main__":
         "I cannot determine the answer from the provided context."
         """)
 
-        mlflow.log_param("grader_prompt", """
-        You are a ruthless and strict relevance grader for a Retrieval-Augmented Generation system.
-        Your job is to determine if the retrieved 'Context' contains ALL the sufficient, relevant facts to answer the 'Question'.
 
-        INSTRUCTIONS:
-        1. Read the question carefully to identify the core entities and requirements.
-        2. Scan the context. Does it contain the actual information needed to fully answer the question?
-        3. If the context is completely irrelevant, talks about a different subject, or is completely blank, reply NO.
-        4. STRICT RULE: If the context only PARTIALLY answers the question, you MUST reply NO.
-        5. Only reply YES if the context contains enough facts to generate a complete and accurate answer.
-
-        Reply ONLY with YES or NO:
-        """)
         mlflow.log_param("num_question",len(result_df))
 
+        mlflow.log_param("embedding_model","all-MiniLM-L6-v2")
+
         mlflow.log_metric("faithfulness",result_df["faithfulness"].dropna().mean())
+        
         mlflow.log_metric("answer_relevancy",result_df["answer_relevancy"].dropna().mean())
+      
         mlflow.log_metric("context_recall",result_df["context_recall"].dropna().mean())
+
         mlflow.log_metric("context_precision",result_df["context_precision"].dropna().mean())
+
         mlflow.log_metric("latency", result_df["latency"].dropna().mean())
 
         mlflow.log_text(csv_string , "evaluation_results.csv")

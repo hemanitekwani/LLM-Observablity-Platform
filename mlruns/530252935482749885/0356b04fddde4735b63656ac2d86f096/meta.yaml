@@ -1,0 +1,14 @@
+artifact_uri: file:///C:/Users/hhema/llm-observability-platform/mlruns/530252935482749885/0356b04fddde4735b63656ac2d86f096/artifacts
+end_time: 1782459019992
+entry_point_name: ''
+experiment_id: '530252935482749885'
+lifecycle_stage: active
+run_id: 0356b04fddde4735b63656ac2d86f096
+run_name: baseline_v2_CRAG
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1782459015110
+status: 3
+tags: []
+user_id: hhema

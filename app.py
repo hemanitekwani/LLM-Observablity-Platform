@@ -12,13 +12,10 @@ st.markdown("---")
 
 st.sidebar.header("📁 MLflow Experiment Scanner")
 
-# Point this to the EXPERIMENT folder, not a specific run
 experiment_dir = st.sidebar.text_input(
     "MLflow Experiment Directory",
     value=r"mlruns\530252935482749885" 
 )
-
-# @st.cache_data
 def scan_mlflow_runs(exp_dir):
     """Scans the experiment directory and dynamically loads all runs."""
     all_runs = {}
@@ -41,7 +38,6 @@ def scan_mlflow_runs(exp_dir):
             except Exception:
                 pass
 
-        # 2. Extract Metrics
         metrics = {}
         met_dir = os.path.join(run_path, "metrics")
         if os.path.exists(met_dir):
@@ -54,7 +50,6 @@ def scan_mlflow_runs(exp_dir):
                 except Exception:
                     pass
 
-        # 3. Extract Parameters
         params = {}
         par_dir = os.path.join(run_path, "params")
         if os.path.exists(par_dir):
@@ -65,7 +60,6 @@ def scan_mlflow_runs(exp_dir):
                 except Exception:
                     pass
 
-        # 4. Extract CSV Artifact
         df = pd.DataFrame()
         csv_path = os.path.join(run_path, "artifacts", "evaluation_results.csv")
         if os.path.exists(csv_path):
@@ -85,29 +79,25 @@ def scan_mlflow_runs(exp_dir):
         
     return all_runs
 
-# Execute the scan
+
 scanned_runs = scan_mlflow_runs(experiment_dir)
 
 if not scanned_runs:
     st.error("No runs found. Please check the MLflow Experiment Directory path in the sidebar.")
     st.stop()
 
-# -----------------------------------------------------------------------------
-# UI TABS SETUP
-# -----------------------------------------------------------------------------
+## TABS
+
 tab1, tab2 = st.tabs([
     "🔍 Individual Run Inspector", 
     "📈 Cross-Run Comparison Engine"
 ])
 
-# =============================================================================
 # TAB 1: INDIVIDUAL RUN INSPECTOR
-# =============================================================================
 with tab1:
     st.subheader("Single Run Diagnostics")
     st.markdown("Select a specific experiment run to view its parameters, macro metrics, and hallucination log.")
     
-    # Select ONE run to inspect
     selected_run_name = st.selectbox("Select Target Run", list(scanned_runs.keys()))
     run_data = scanned_runs[selected_run_name]
     
@@ -200,75 +190,88 @@ with tab1:
     else:
         st.info("No CSV artifact found for this run.")
 
-# =============================================================================
+
+
 # TAB 2: CROSS-RUN COMPARISON ENGINE
-# =============================================================================
+
+
 with tab2:
     st.subheader("Multi-Experiment Comparative Analysis")
     st.markdown("Select multiple runs to benchmark system optimizations against each other.")
     
-    # Select MULTIPLE runs to compare
-    runs_to_compare = st.multiselect("Select Runs to Compare", list(scanned_runs.keys()), default=list(scanned_runs.keys())[:2] if len(scanned_runs) >= 2 else list(scanned_runs.keys()))
+    runs_to_compare = st.multiselect(
+        "Select Runs to Compare", 
+        list(scanned_runs.keys()), 
+        default=list(scanned_runs.keys())[:2] if len(scanned_runs) >= 2 else list(scanned_runs.keys())
+    )
     
     if runs_to_compare:
-        # Build comparative leaderboard
         leaderboard = []
+        combined_dfs = []
+
+        metrics_to_plot = ["faithfulness", "adjusted_faithfulness", "answer_relevancy", "context_precision", "context_recall", "latency"]
+        safe_text = "I cannot determine the answer from the provided context"
+
         for r_name in runs_to_compare:
             metrics = scanned_runs[r_name]["metrics"]
             params = scanned_runs[r_name]["params"]
-            df_loop = scanned_runs[r_name].get("data",pd.DataFrame())
+            df = scanned_runs[r_name].get("data", pd.DataFrame()).copy()
 
-            loop_adj_faith = metrics.get("faithfulness",0.0)
+            if not df.empty:
+               
+                df["adjusted_faithfulness"] = df.apply(
+                    lambda row: 1.0 if safe_text.lower() in str(row.get("answer", "")).lower() 
+                    else pd.to_numeric(row.get("faithfulness", 0.0), errors="coerce"), axis=1
+                )
+                
+                for m in ["faithfulness", "answer_relevancy", "context_precision", "context_recall", "latency"]:
+                    if m in df.columns:
+                        df[m] = pd.to_numeric(df[m], errors="coerce")
 
-            if not df_loop.empty and 'faithfulness' in df_loop.columns and "answer" in df_loop.columns:
-                safe_text = "I cannot determine the answer from the provided context"
-
-                loop_is_refusal = df_loop["answer"].fillna("").str.contains(safe_text,case=False,na=False)
-                loop_f_num = pd.to_numeric(df_loop["faithfulness"],errors="coerce")
-                loop_attempted = loop_f_num[~loop_is_refusal]
-
-                if not loop_attempted.empty:
-                    loop_adj_faith = loop_attempted.mean()
-
-
-            leaderboard.append({
-                "Run Name": r_name,
-                "Raw Faithfulness": metrics.get("faithfulness", 0.0),
-                "Adj. Faithfulness":loop_adj_faith,
-                "Answer Relevancy": metrics.get("answer_relevancy", 0.0),
-                "Context Precision": metrics.get("context_precision", 0.0),
-                "Context Recall": metrics.get("context_recall", 0.0),
-                "Latency (s)": metrics.get("latency", 0.0),
-                "Chunk Size": params.get("chunk_size", "N/A"),
-                "vector_Top_K": params.get("vector_fetch_k" , params.get("top_k" ,"NAN")),
-                "reranker_top_k":params.get("reranker_top_k" , "None"),
-                "system_prompt":params.get("system_prompt","N/A")
-            })
-            
-        leaderboard_df = pd.DataFrame(leaderboard).set_index("Run Name")
-
-
-        st.dataframe(leaderboard_df.style.highlight_max(axis=0, subset=["Raw Faithfulness", "Adj. Faithfulness", "Answer Relevancy"], color="#eafaf1").format(precision=4), use_container_width=True) 
-
-        st.markdown("#### Subspace Performance Benchmarks")
-        combined_dfs = []
-
-        for r_name in runs_to_compare:
-            df = scanned_runs[r_name]["data"].copy()
-            if not df.empty and "question_type" in df.columns and "faithfulness" in df.columns:
-                df["faithfulness"] = pd.to_numeric(df["faithfulness"], errors="coerce")
-                df["latency"] = pd.to_numeric(df.get("latency", 0.0), errors="coerce")
+                leaderboard.append({
+                    "Run Name": r_name,
+                    "Raw Faithfulness": df["faithfulness"].mean(),
+                    "Adj. Faithfulness": df["adjusted_faithfulness"].mean(),
+                    "Answer Relevancy": df["answer_relevancy"].mean(),
+                    "Context Precision": df["context_precision"].mean(),
+                    "Context Recall": df["context_recall"].mean(),
+                    "Latency (s)": df["latency"].mean(),
+                    "Chunk Size": params.get("chunk_size", "N/A"),
+                    "vector_Top_K": params.get("vector_fetch_k", params.get("top_k", "NAN")),
+                    "reranker_top_k": params.get("reranker_top_k", "None"),
+                })
+                
                 df["Run Name"] = r_name
                 combined_dfs.append(df)
-                
+
+        # DISPLAY LEADERBOARD
+        if leaderboard:
+            leaderboard_df = pd.DataFrame(leaderboard).set_index("Run Name")
+            st.dataframe(leaderboard_df.style.highlight_max(
+                axis=0, 
+                subset=["Raw Faithfulness", "Adj. Faithfulness", "Answer Relevancy"], 
+                color="#eafaf1"
+            ).format(precision=4), use_container_width=True)
+
+        # DISPLAY SUBSPACE PLOTS
+        st.markdown("#### Subspace Performance Benchmarks")
         if combined_dfs:
             combined_data = pd.concat(combined_dfs)
             subspace_summary = combined_data.groupby(["Run Name", "question_type"]).mean(numeric_only=True).reset_index()
             
-            c1, c2 = st.columns(2)
-            with c1:
-                st.plotly_chart(px.bar(subspace_summary, x="question_type", y="faithfulness", color="Run Name", barmode="group", title="Faithfulness by Domain", template="plotly_white"), use_container_width=True)
-            with c2:
-                st.plotly_chart(px.bar(subspace_summary, x="question_type", y="latency", color="Run Name", barmode="group", title="Latency by Domain", template="plotly_white"), use_container_width=True)
+            cols = st.columns(2)
+            for i, metric in enumerate(metrics_to_plot):
+                title = metric.replace('_', ' ').title()
+                fig = px.bar(
+                    subspace_summary, 
+                    x="question_type", 
+                    y=metric, 
+                    color="Run Name", 
+                    barmode="group", 
+                    title=f"{title} by Domain", 
+                    template="plotly_white"
+                )
+                with cols[i % 2]:
+                    st.plotly_chart(fig, use_container_width=True)
         else:
             st.info("Not enough row-level artifact data to generate subspace charts.")

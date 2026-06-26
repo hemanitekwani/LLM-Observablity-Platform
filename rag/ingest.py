@@ -7,7 +7,7 @@ from pathlib import Path
 
 
 
-PDF_PATH="data/attention-is-all-you-need.pdf"
+PDF_PATH="data\Detailed Advertisement_350 SOs (ENGLISH).pdf"
 
 VECTOR_DB_PATH="data/vectorstore"
 
@@ -26,7 +26,7 @@ def create_vector_store():
 
     print(f"Created {len(chunks)} chunks")
 
-    embeddings = HuggingFaceEmbeddings(model_name="BAAI/bge-small-en-v1.5")
+    embeddings = HuggingFaceEmbeddings(model_name="BAAI/bge-m3")
 
     print("Creating FAISS index")
 

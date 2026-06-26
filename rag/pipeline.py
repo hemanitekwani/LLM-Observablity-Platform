@@ -33,16 +33,12 @@ class Pipeline:
 
         response = self.llm.invoke(generation_prompt)
         return response.content.strip()
-    
-    def _grade_alignment(self, question, context, answer):
-        """The Internal Audit Node (Hallucination Catcher)."""
-        
-        if "I cannot determine" in answer:
-            return "YES"
 
+    def grade_context_relevance(self,question , context):
+        """The CRAG Auditor Node (Grades Context BEFORE Generation)."""
         grader_prompt = f"""
-        You are a ruthless, zero-tolerance hallucination auditor. 
-        Your ONLY job is to verify if the 'Generated Answer' is strictly derived from the 'Context'.
+        You are a strict relevance grader for a Retrieval-Augmented Generation system.
+        Your job is to determine if the retrieved 'Context' contains sufficient, relevant facts to answer the 'Question'.
 
         Context:
         {context}
@@ -50,19 +46,48 @@ class Pipeline:
         Question:
         {question}
 
-        Generated Answer:
-        {answer}
-
-        CRITICAL INSTRUCTIONS:
-        1. If the Generated Answer contains EVEN ONE word, number, or claim that is not explicitly written in the Context, you MUST reply NO.
-        2. If the Generated Answer relies on outside knowledge, you MUST reply NO.
-        3. Only if every single fact in the answer is proven by the context, reply YES.
+        INSTRUCTIONS:
+        1. Read the question carefully to identify the core entities and requirements.
+        2. Scan the context. Does it contain the actual information needed to answer the question?
+        3. If the context is completely irrelevant, missing key facts, or talks about a different subject, reply NO.
+        4. If the context contains the necessary facts (even partially), reply YES.
+        5. If you are unsure, default to YES.
 
         Reply ONLY with YES or NO:
         """
-
         response = self.llm.invoke(grader_prompt)
         return response.content.strip().upper()
+
+    
+    # def _grade_alignment(self, question, context, answer):
+    #     """The Internal Audit Node (Hallucination Catcher)."""
+        
+    #     grader_prompt = f"""
+    #     You are a precise RAG auditor. Your goal is to verify if the 'Generated Answer' is supported by the 'Context'.
+
+    #     Context:
+    #     {context}
+
+    #     Question:
+    #     {question}
+
+    #     Generated Answer:
+    #     {answer}
+
+    #     INSTRUCTIONS:
+    #     1. FACTUAL GROUNDING: The answer must be based on the provided context. If the context does not contain the answer, the LLM should have said "I cannot determine...".
+    #     2. TOLERANCE: Do NOT penalize for:
+    #       - Conversational filler (e.g., "The answer is...", "According to the document...").
+    #       - Formatting differences (e.g., list vs. paragraph).
+    #       - Minor grammar changes.
+    #     3. STRICT HALLUCINATION CHECK: Only reply NO if the answer provides specific data, names, numbers, or claims that are NOT present in the context.
+    #     4. If you are unsure, default to YES.
+
+    #     Reply ONLY with YES or NO:
+    #     """
+
+    #     response = self.llm.invoke(grader_prompt)
+    #     return response.content.strip().upper()
 
     def _rewrite_query(self,question):
         """The Fallback Mechanism (Query Rewriter)."""
@@ -93,16 +118,22 @@ class Pipeline:
 
             context = "\n\n".join(doc.page_content for doc in docs)
 
-            draft_answer = self._generate_answer(question , context)
+            relevance_grade = self.grade_context_relevance(question , context)
 
-            grade = self._grade_alignment(question , context, draft_answer)
+            # draft_answer = self._generate_answer(question , context)
 
-            if "YES" in grade:
+            # grade = self._grade_alignment(question , context, draft_answer)
+            
+            print(f"--- Attempt {attempt + 1} | Query: {current_query_search} | Grade: {relevance_grade} ---")
+
+            if "YES" in relevance_grade:
+                draft_answer = self._generate_answer(question , context)
                 return {
                     "answer":draft_answer,
-                    "context":final_docs,
+                    "contexts":[doc.page_content for doc in final_docs],
                     "final_query_used":current_query_search,
-                    "retries":attempt
+                    "retries":attempt,
+                    "is_hallucination":False
                 }
             
             if attempt < self.max_retries - 1:
@@ -111,10 +142,10 @@ class Pipeline:
 
         return {
             "answer":"I cannot determine the answer from the provided context.",
-            "contexts":final_docs,
+            "contexts":[doc.page_content for doc in final_docs],
             "final_query_used":current_query_search,
             "retries":self.max_retries,
-
+            "is_hallucination":True
 
         }
 
