@@ -15,7 +15,7 @@
 ---
 
 <p align="center">
-  <img src="./Comparison.png" width="95%">
+  <img src="./comparison_analysis.png" width="95%">
 </p>
 
 ---
