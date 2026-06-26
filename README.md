@@ -1,118 +1,163 @@
 <div align="center">
 
-# 🚀 RAG Observability & Evaluation Platform
+# 🚀 Enterprise RAG Observability & Evaluation Platform
 
-### framework for evaluating, benchmarking, and monitoring Retrieval-Augmented Generation (RAG) systems.
+### Experiment Tracking • Hallucination Analysis • MLflow Monitoring • RAG Benchmarking
 
 ![Python](https://img.shields.io/badge/Python-3.10-blue)
+![LangChain](https://img.shields.io/badge/LangChain-RAG-green)
 ![MLflow](https://img.shields.io/badge/MLflow-Tracking-orange)
 ![Streamlit](https://img.shields.io/badge/Streamlit-Dashboard-red)
-![LangChain](https://img.shields.io/badge/LangChain-RAG-green)
 ![RAGAS](https://img.shields.io/badge/RAGAS-Evaluation-success)
-![License](https://img.shields.io/badge/License-MIT-blue)
 
 </div>
 
 ---
 
-# 📌 Overview
-
-Large Language Models are only as reliable as their retrieval pipeline. Traditional RAG systems usually stop after generating an answer. This project focuses on **evaluating and observing** RAG systems.
-
-This platform answers critical engineering questions:
-* **How faithful are the generated responses?**
-* **Which configuration performs best?**
-* **Which prompts hallucinate?**
-* **Which retrieval strategy is better?**
-* **How does CRAG compare against vanilla RAG?**
-
-The platform automatically evaluates every experiment, stores metrics in MLflow, and visualizes performance through an interactive Streamlit dashboard.
+<p align="center">
+  <img src="./Comparison.png" width="95%">
+</p>
 
 ---
 
-# 🧪 Custom Metric: Adjusted Faithfulness
+# Overview
 
-Standard evaluation metrics frequently penalize language models for "safe refusals"—scenarios where the model correctly reports that information is missing from the provided context. To resolve this, the Adjusted Faithfulness metric was developed to distinguish between valid safety constraints and factual hallucinations.
+Retrieval-Augmented Generation (RAG) systems are typically evaluated only through manual testing or subjective inspection, making it difficult to understand why a configuration succeeds or fails.
 
-### The Formula
-Let $F_{raw}$ be the raw faithfulness score from RAGAS, and $R$ be the set of "Refusal" responses (e.g., *"I cannot determine the answer..."*).
+This project focuses on **observability rather than chatbot development**. It provides an experimentation framework for benchmarking multiple RAG configurations, tracking evaluation metrics across runs, identifying hallucinations, and comparing retrieval strategies using a unified dashboard.
 
-$$ \text{Faithfulness}_{adjusted} = 
-\begin{cases} 
-1.0, & \text{if Answer} \in R \\ 
-F_{raw}, & \text{otherwise} 
-\end{cases} $$
+Each experiment is automatically evaluated using RAGAS, logged with MLflow, and visualized through an interactive Streamlit application, enabling systematic analysis instead of trial-and-error tuning.
 
-By normalizing safe refusals to a score of **1.0**, prevented the evaluation from penalizing intelligent models that correctly identify missing context.
+The platform was designed to answer questions such as:
 
----
-
-# ✨ Features
-
-## ✅ Multiple Retrieval Configurations
-Supports experimentation with different retrieval strategies such as:
-- **Vanilla RAG**
-- **CRAG (Corrective RAG)**
-- **Hyperparameter Tuning:** Different Chunk Sizes, Top-K, and Reranker settings.
-
-## ✅ Automated RAG Evaluation
-Every run is automatically evaluated using **RAGAS** metrics. Metrics include:
-- Faithfulness & Adjusted Faithfulness
-- Answer Relevancy
-- Context Precision
-- Context Recall
-- Latency
-
-## ✅ MLflow Experiment Tracking
-Every experiment stores:
-- Hyperparameters
-- Evaluation Metrics
-- Generated Answers & Artifacts
-- Evaluation CSVs
-*Allowing for complete experiment reproducibility.*
-
-## ✅ Interactive Observability Dashboard
-Built using **Streamlit**, providing:
-- Experiment Leaderboard & Hyperparameter Inspection
-- Hallucination Audit Logs
-- Cross-run comparison charts
-- Domain-specific performance analysis
-
-## ✅ Hallucination Detection
-The platform distinguishes between:
-1. **Correct refusal:** "I cannot determine the answer from the provided context."
-2. **Actual hallucinations:** Unsupported facts generated despite insufficient evidence.
+* Which retrieval configuration performs best?
+* How much does CRAG improve response quality?
+* Which prompts consistently hallucinate?
+* Which retrieval parameters contribute to better factual grounding?
+* How do retrieval changes affect latency and answer quality?
 
 ---
 
-# 🏗 System Architecture
+# Custom Metric — Adjusted Faithfulness
 
-```mermaid
-flowchart LR
-    A[Documents/PDFs] --> B[Chunking]
-    B --> C[Vector Database]
-    Q[User Question] --> D[Retriever]
-    D --> E[CRAG Verification]
-    E --> F[Prompt Builder]
-    F --> G[LLM]
-    G --> H[Generated Answer]
-    H --> I[RAGAS Evaluation]
-    I --> J[MLflow]
-    J --> K[Streamlit Dashboard]
+Traditional faithfulness metrics incorrectly penalize models that **refuse to answer** when the requested information does not exist inside the retrieved context.
 
+For example,
 
-# 🏗 Project Structure
+> "I cannot determine the answer from the provided context."
 
-Enterprise-RAG-Observability/
-├── rag/              # Core pipeline (retriever, generator)
-├── evaluation/       # RAGAS evaluators
-├── mlruns/           # MLflow experiment logs
-├── app.py            # Streamlit Dashboard
-└── requirements.txt
+is actually the desired behaviour, but RAGAS often assigns it a low faithfulness score because no factual claim is generated.
 
-📸 Dashboard Previews
+To distinguish genuine hallucinations from correct refusals, this project introduces **Adjusted Faithfulness**.
 
+Let
 
+* **F_raw** = Raw Faithfulness score from RAGAS
+* **R** = Safe refusal response
+
+Then
+
+[
+Faithfulness_{adjusted} =
+\begin{cases}
+1.0 & \text{if response is a valid refusal}\
+F_{raw} & \text{otherwise}
+\end{cases}
+]
+
+This allows the evaluation framework to separate
+
+* factual hallucinations
+* retrieval failures
+* correct guardrail behaviour
+
+instead of treating all low-faithfulness responses equally.
+
+---
+
+# Features
+
+### Multi-Configuration Benchmarking
+
+The platform supports evaluation across multiple retrieval configurations including:
+
+* Vanilla RAG
+* CRAG (Corrective Retrieval-Augmented Generation)
+* Different chunk sizes
+* Different retrieval Top-K values
+* Reranker configurations
+
+Each configuration is stored as an independent MLflow experiment for reproducible comparison.
+
+---
+
+### Automated Evaluation Pipeline
+
+Every experiment is automatically evaluated on a curated benchmark dataset.
+
+The evaluation pipeline computes
+
+* Faithfulness
+* Adjusted Faithfulness
+* Answer Relevancy
+* Context Precision
+* Context Recall
+* End-to-End Latency
+
+All evaluation artifacts are preserved for later analysis.
+
+---
+
+### MLflow Experiment Tracking
+
+Every experimental run records
+
+* Hyperparameters
+* Retrieval configuration
+* Evaluation metrics
+* Generated answers
+* Complete evaluation CSV
+* Run metadata
+
+allowing every experiment to be reproduced and compared.
+
+---
+
+### Interactive Observability Dashboard
+
+A Streamlit dashboard provides interactive inspection of all experiments.
+
+Capabilities include
+
+* Experiment leaderboard
+* Run-to-run comparison
+* Hyperparameter inspection
+* Retrieval configuration tracking
+* Hallucination audit logs
+* Domain-wise benchmark visualization
+* Performance comparison across configurations
+
+---
+
+### Hallucination Analysis
+
+Instead of reporting only an aggregate score, the framework identifies individual responses responsible for poor performance.
+
+Responses are categorized into
+
+* Correct refusal
+* Retrieval failure
+* True hallucination
+
+allowing rapid debugging of retrieval quality.
+
+---
+
+### Configuration Comparison
+
+The platform enables side-by-side comparison between multiple retrieval strategies, making it possible to quantify improvements introduced by architectural changes such as CRAG.
+
+Rather than relying on intuition, configuration decisions are supported by measurable evaluation metrics collected over identical benchmark datasets.
 
 
 
