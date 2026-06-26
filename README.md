@@ -24,7 +24,7 @@
 
 Retrieval-Augmented Generation (RAG) systems are typically evaluated only through manual testing or subjective inspection, making it difficult to understand why a configuration succeeds or fails.
 
-This project focuses on **observability rather than chatbot development**. It provides an experimentation framework for benchmarking multiple RAG configurations, tracking evaluation metrics across runs, identifying hallucinations, and comparing retrieval strategies using a unified dashboard.
+This project focuses on **observability**. It provides an experimentation framework for benchmarking multiple RAG configurations, tracking evaluation metrics across runs, identifying hallucinations, and comparing retrieval strategies using a unified dashboard.
 
 Each experiment is automatically evaluated using RAGAS, logged with MLflow, and visualized through an interactive Streamlit application, enabling systematic analysis instead of trial-and-error tuning.
 
@@ -57,13 +57,11 @@ Let
 
 Then
 
-[
-Faithfulness_{adjusted} =
-\begin{cases}
-1.0 & \text{if response is a valid refusal}\
-F_{raw} & \text{otherwise}
-\end{cases}
-]
+```text
+               ⎧ 1.0      if response is a valid refusal
+F_adjusted =   ⎨
+               ⎩ F_raw    otherwise
+```
 
 This allows the evaluation framework to separate
 
@@ -85,7 +83,7 @@ The platform supports evaluation across multiple retrieval configurations includ
 * CRAG (Corrective Retrieval-Augmented Generation)
 * Different chunk sizes
 * Different retrieval Top-K values
-* Reranker configurations
+
 
 Each configuration is stored as an independent MLflow experiment for reproducible comparison.
 
