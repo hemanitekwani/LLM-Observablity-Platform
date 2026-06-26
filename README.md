@@ -14,9 +14,9 @@
 
 ---
 
-<p align="center">
-  <img src="./comparison_analysis.png" width="95%">
-</p>
+<div align="center">
+  <img src="./comparison_analysis.png" width="800px" alt="Experiment Comparison Dashboard">
+</div>
 
 ---
 [![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://llm-observablity-platform-fuktvqtqn4mtjidvba9mzr.streamlit.app/)
