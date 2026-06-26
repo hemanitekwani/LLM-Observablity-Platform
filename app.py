@@ -14,7 +14,7 @@ st.sidebar.header("📁 MLflow Experiment Scanner")
 
 experiment_dir = st.sidebar.text_input(
     "MLflow Experiment Directory",
-    value=r"mlruns\530252935482749885" 
+    value=r"mlruns/530252935482749885" 
 )
 def scan_mlflow_runs(exp_dir):
     """Scans the experiment directory and dynamically loads all runs."""
