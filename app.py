@@ -12,10 +12,13 @@ st.markdown("---")
 
 st.sidebar.header("📁 MLflow Experiment Scanner")
 
-experiment_dir = st.sidebar.text_input(
-    "MLflow Experiment Directory",
-    value=r"mlruns/530252935482749885" 
-)
+mlflow_root = st.sidebar.text_input("MLflow Root Directory", value="mlruns")
+
+# 2. Get list of subdirectories (your experiment IDs)
+if os.path.exists(mlflow_root):
+    experiments = [d for d in os.listdir(mlflow_root) if os.path.isdir(os.path.join(mlflow_root, d))]
+    selected_exp = st.sidebar.selectbox("Select Experiment ID", experiments)
+    experiment_dir = os.path.join(mlflow_root, selected_exp)
 def scan_mlflow_runs(exp_dir):
     """Scans the experiment directory and dynamically loads all runs."""
     all_runs = {}
